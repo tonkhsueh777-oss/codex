@@ -1,4 +1,31 @@
 /* V34: central six-second cinematic for trump/tactic cards. */
+.skill-cinematic__details {
+  position: absolute;
+  inset: 0 0 65px;
+  display: grid;
+  align-content: center;
+  padding: 18px;
+  overflow: auto;
+  white-space: pre-line;
+  text-align: center;
+  color: #ffe8a9;
+  background: #071a20;
+  font-size: clamp(16px, 2.4vw, 26px);
+  line-height: 1.65;
+}
+.skill-cinematic__continue {
+  position: absolute;
+  bottom: 12px;
+  left: 15%;
+  width: 70%;
+  min-height: 44px;
+  color: #fff3c8;
+  background: #775014;
+  border: 1px solid #eec970;
+  border-radius: 8px;
+  font-size: 16px;
+}
+.skill-cinematic [hidden] { display: none !important; }
 .skill-cinematic {
   position: fixed;
   inset: 0;

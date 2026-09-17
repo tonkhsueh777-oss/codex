@@ -62,7 +62,7 @@
       if (finished?.ok) await showHumanDraw(finished.cards, false);
       resetPending();
       saveAndRender();
-      game.UI.showToast(mergedMessage);
+      if (!game.MobilePrompts?.isMobile()) game.UI.showToast(mergedMessage);
       await continueGameLoop();
       return true;
     }
@@ -76,10 +76,11 @@
     return human()?.hand.find(card => card.runtimeId === runtimeId) || null;
   }
 
-  async function playSkillCinematic(card) {
+  async function playSkillCinematic(card, result, actorId = 'human') {
     if (!card || typeof game.SkillCinematic?.playCard !== 'function') return false;
     if (!game.SkillCinematicLogic?.hasCinematic?.(card)) return false;
-    return game.SkillCinematic.playCard(card);
+    const presentation = game.MobilePrompts.special(card, result, state, actorId);
+    return game.SkillCinematic.playCard(card, presentation);
   }
 
   function legalActionForCard(runtimeId) {
@@ -87,6 +88,7 @@
   }
 
   async function handleCardClick(runtimeId) {
+    if (game.SkillCinematic?.isActive()) return;
     if (!state || state.winnerId || currentPlayer()?.id !== 'human' || state.phase !== 'action') return;
     const card = cardById(runtimeId);
     if (!card) return;
@@ -100,7 +102,7 @@
       await showHumanDraw(result.cards, true);
       resetPending();
       saveAndRender();
-      game.UI.showToast(result.message);
+      if (!game.MobilePrompts?.isMobile()) game.UI.showToast(result.message);
       await continueGameLoop();
       return;
     }
@@ -159,6 +161,7 @@
   }
 
   async function handleBoardTarget(destination) {
+    if (game.SkillCinematic?.isActive()) return;
     if (pending.kind !== 'travel' || !pending.runtimeId) return;
     await afterHumanAction(game.playTravelCard(state, 'human', pending.runtimeId, destination));
   }
@@ -192,7 +195,7 @@
         onSelect: async () => {
           const card = cardById(pending.runtimeId);
           const result = game.playTrumpCard(state, 'human', pending.runtimeId, pending.targetPlayerId, ownTreasureId, t.id);
-          if (result?.ok) await playSkillCinematic(card);
+          if (result?.ok) await playSkillCinematic(card, result);
           await afterHumanAction(result);
         }
       }));
@@ -205,10 +208,11 @@
   }
 
   async function handlePlayerTarget(playerId) {
+    if (game.SkillCinematic?.isActive()) return;
     if (pending.kind === 'tactic') {
       const card = cardById(pending.runtimeId);
       const result = game.playTacticCard(state, 'human', pending.runtimeId, playerId);
-      if (result?.ok) await playSkillCinematic(card);
+      if (result?.ok) await playSkillCinematic(card, result);
       await afterHumanAction(result);
       return;
     }
@@ -223,6 +227,7 @@
   }
 
   async function handleEndAction() {
+    if (game.SkillCinematic?.isActive()) return;
     if (!state || currentPlayer()?.id !== 'human' || state.phase !== 'action') return;
     pending = { kind: 'pass', runtimeId: null, targetPlayerId: null };
     game.UI.setInteractionMode('choosePassCard', {
@@ -245,10 +250,10 @@
       afterAction: async (decision, liveState, result) => {
         if (result?.ok && (decision.type === 'trump' || decision.type === 'tactic')) {
           const card = liveState.discardPile.find(item => item.runtimeId === decision.runtimeId) || null;
-          await playSkillCinematic(card);
+          await playSkillCinematic(card, result, playerId);
         }
         saveAndRender();
-        game.UI.showToast(result.message);
+        if (!game.MobilePrompts?.isMobile()) game.UI.showToast(result.message);
         await delay(actionDelay(decision));
       }
     });
@@ -267,6 +272,7 @@
         if (!player) break;
 
         if (state.phase === 'setup' || state.phase === 'turnStart') {
+          await game.MobilePrompts?.showTurn(player);
           const startingPlayerId = player.id;
           const turn = game.beginTurn(state);
           if (!turn.skipped && startingPlayerId === 'human' && turn.cards?.length) {
@@ -302,6 +308,7 @@
   }
 
   function startNewGame() {
+    if (game.SkillCinematic?.isActive()) return;
     game.clearSavedGame();
     state = game.createGameState();
     resetPending();

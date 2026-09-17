@@ -7,6 +7,9 @@
   let video = null;
   let title = null;
   let active = false;
+  let details = null;
+  let continueButton = null;
+  let appWasInert = false;
 
   function ensureOverlay() {
     if (overlay) return overlay;
@@ -20,10 +23,14 @@
         <video class="skill-cinematic__video" playsinline preload="auto"></video>
         <div class="skill-cinematic__flare" aria-hidden="true"></div>
         <div class="skill-cinematic__title" aria-live="polite"></div>
+        <div class="skill-cinematic__details" role="status"></div>
+        <button class="skill-cinematic__continue" type="button" hidden>确认结算，继续</button>
       </div>`;
     document.body.appendChild(overlay);
     video = overlay.querySelector('.skill-cinematic__video');
     title = overlay.querySelector('.skill-cinematic__title');
+    details = overlay.querySelector('.skill-cinematic__details');
+    continueButton = overlay.querySelector('.skill-cinematic__continue');
     return overlay;
   }
 
@@ -42,13 +49,23 @@
       title.classList.remove('is-visible');
     }
     active = false;
+    const app = document.getElementById('app');
+    if (app) app.inert = appWasInert;
   }
 
-  async function playCard(card) {
+  async function playCard(card, result) {
     const definition = logic.getCinematic(card?.key);
     if (!definition || active) return false;
     ensureOverlay();
     active = true;
+    const autoClose = Boolean(game.MobilePrompts?.isMobile());
+    overlay.classList.toggle('is-auto-close', autoClose);
+    const app = document.getElementById('app');
+    appWasInert = Boolean(app?.inert);
+    if (app) app.inert = true;
+    continueButton.hidden = true;
+    details.hidden = false;
+    details.textContent = result?.activation || definition.title;
 
     overlay.classList.add('is-open');
     overlay.setAttribute('aria-hidden', 'false');
@@ -58,6 +75,10 @@
     video.src = `${definition.src}?v=34`;
     video.currentTime = 0;
     video.muted = false;
+    video.hidden = true;
+    await new Promise(resolve => setTimeout(resolve, autoClose ? 1800 : 1000));
+    video.hidden = false;
+    details.hidden = true;
 
     return new Promise(resolve => {
       let finished = false;
@@ -69,8 +90,24 @@
         video.removeEventListener('timeupdate', onTimeUpdate);
         video.removeEventListener('ended', finish);
         video.removeEventListener('error', onError);
-        closeOverlay();
-        resolve(true);
+        video.pause();
+        video.hidden = true;
+        title.classList.remove('is-visible');
+        details.hidden = false;
+        details.textContent = result?.displayResult || result?.message || definition.title;
+        if (autoClose) {
+          // Keep the existing input lock until the result has been readable.
+          const readingMs = Math.min(7000, Math.max(4000, details.textContent.length * 65));
+          setTimeout(() => { closeOverlay(); resolve(true); }, readingMs);
+          return;
+        }
+        continueButton.hidden = false;
+        continueButton.onclick = () => {
+          continueButton.onclick = null;
+          closeOverlay();
+          resolve(true);
+        };
+        continueButton.focus();
       };
       const onTimeUpdate = () => {
         if (video.currentTime >= 5) title.classList.add('is-visible');

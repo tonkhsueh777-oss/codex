@@ -36,7 +36,7 @@
     overview.classList.add('is-legal-target');
     overview.setAttribute('role', 'button');
     overview.setAttribute('tabindex', '0');
-    overview.setAttribute('aria-label', `选择${playerId === 'ai1' ? 'AI玩家一' : 'AI玩家二'}为目标`);
+    overview.setAttribute('aria-label', `选择${playerId === 'ai1' ? 'AI玩家甲' : 'AI玩家乙'}为目标`);
 
     const activate = () => source.click();
     overview.addEventListener('click', activate);

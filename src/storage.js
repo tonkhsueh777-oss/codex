@@ -45,6 +45,11 @@
       if (!raw) return null;
       const payload = JSON.parse(raw);
       if (!payload || payload.version !== game.SAVE_VERSION || !validState(payload.state)) return null;
+      const names = {human: '玩家（你）', ai1: 'AI玩家甲', ai2: 'AI玩家乙'};
+      payload.state.players.forEach(player => {
+        player.name = names[player.id] || player.name;
+        player.skipNextRefill = Boolean(player.skipNextRefill);
+      });
       return payload.state;
     } catch (error) {
       return null;

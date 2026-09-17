@@ -134,7 +134,7 @@
     return { ok: true, message, treasureId, gained: true };
   };
 
-  game.playTacticCard = function playTacticCard(state, playerId, runtimeId, targetPlayerId) {
+  game.playTacticCard = function playTacticCard(state, playerId, runtimeId, targetPlayerId, rng = Math.random) {
     if (!canAct(state, playerId)) return { ok: false, message: '当前不是你的行动阶段。' };
     if (playerId === targetPlayerId) return { ok: false, message: '计策牌不能指定自己。' };
     const player = findPlayer(state, playerId);
@@ -142,15 +142,38 @@
     const card = findCard(player, runtimeId);
     if (!target) return { ok: false, message: '找不到目标玩家。' };
     if (!card || card.type !== 'tactic') return { ok: false, message: '这不是计策牌。' };
+    if (!['bully', 'fire', 'flower'].includes(card.key)) return { ok: false, message: '未知计策。' };
 
     const removed = takeCard(player, runtimeId);
     state.discardPile.push(removed);
-    target.skipTurns += 1;
-    const message = `发动【${removed.name}】，${target.name}下一个完整回合将被跳过。`;
-    state.log.push(`${player.name}：${message}`);
+    const activation = `${player.name} →【${removed.name}】→ ${target.name}`;
+    let message;
+    let burnedCard = null;
+    if (removed.key === 'bully') {
+      target.skipTurns += 1;
+      message = `${target.name}下一完整回合无法行动。`;
+    } else if (removed.key === 'fire') {
+      if (target.hand.length) {
+        burnedCard = target.hand.splice(Math.floor(rng() * target.hand.length), 1)[0];
+        state.discardPile.push(burnedCard);
+      }
+      target.skipNextRefill = true;
+      message = (burnedCard
+        ? `${player.name}烧毁了${target.name}的【${burnedCard.name}】。`
+        : `${target.name}无手牌，本次没有烧毁任何牌。`)
+        + `\n${target.name}下一回合不会自动补牌至 3 张。`;
+    } else {
+      const from = player.position;
+      const to = target.position;
+      player.position = to;
+      target.position = from;
+      const place = id => id === 'center' ? '中央起点' : game.LOCATIONS[id].name;
+      message = `${player.name}：${place(from)} → ${place(to)}\n${target.name}：${place(to)} → ${place(from)}`;
+    }
+    state.log.push(activation, message);
     player.lastAction = message;
-    target.lastAction = `被${player.name}施加计策，待跳过${target.skipTurns}回合。`;
-    return { ok: true, message, targetPlayerId };
+    target.lastAction = message;
+    return { ok: true, message, activation, targetPlayerId, burnedCard };
   };
 
   game.playTrumpCard = function playTrumpCard(state, playerId, runtimeId, targetPlayerId, ownTreasureId, targetTreasureId) {
@@ -174,11 +197,12 @@
     player.treasures[targetTreasureId] += 1;
 
     const message = `发动【${removed.name}】，以【${game.TREASURES[ownTreasureId].name}】强制交换${target.name}的【${game.TREASURES[targetTreasureId].name}】。`;
-    state.log.push(`${player.name}：${message}`);
+    const activation = `${player.name} →【${removed.name}】→ ${target.name}`;
+    state.log.push(activation, message);
     player.lastAction = message;
-    target.lastAction = `被${player.name}发动王牌交换圣物。`;
+    target.lastAction = message;
     game.checkWinner(state);
-    return { ok: true, message, targetPlayerId, ownTreasureId, targetTreasureId };
+    return { ok: true, message, activation, targetPlayerId, ownTreasureId, targetTreasureId };
   };
 
   game.advancePlayer = function advancePlayer(state) {
@@ -192,9 +216,11 @@
     const player = state.players[state.currentPlayerIndex];
     if (!player) return { ok: false, skipped: false, message: '当前玩家不存在。' };
 
+    const skipRefill = Boolean(player.skipNextRefill);
+    player.skipNextRefill = false;
     if (player.skipTurns > 0) {
       player.skipTurns -= 1;
-      const message = `${player.name}受计策影响，本回合完全跳过。`;
+      const message = `${player.name}受到【恶霸王豹】影响，本回合跳过。`;
       state.log.push(message);
       player.lastAction = message;
       game.advancePlayer(state);
@@ -202,8 +228,10 @@
     }
 
     state.phase = 'action';
-    const { cards } = game.refillHandToLimit(state, player.id, 3, rng);
-    const message = cards.length > 0
+    const { cards } = skipRefill ? {cards: []} : game.refillHandToLimit(state, player.id, 3, rng);
+    const message = skipRefill
+      ? `${player.name}受到【火烧百顺楼】影响，本回合开始不自动补牌至 3 张，进入行动阶段。`
+      : cards.length > 0
       ? `${player.name}补牌${cards.length}张，手牌恢复至${player.hand.length}张，进入行动阶段。`
       : `${player.name}进入行动阶段。`;
     state.log.push(message);

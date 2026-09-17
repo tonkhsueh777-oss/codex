@@ -10,6 +10,7 @@
       position: 'center',
       treasures: { goldSeal: 0, sword: 0, gun: 0, pomelo: 0 },
       skipTurns: 0,
+      skipNextRefill: false,
       lastAction: ''
     };
   }
@@ -70,9 +71,9 @@
 
     const state = {
       players: [
-        makePlayer('human', '玩家', 'human'),
-        makePlayer('ai1', 'AI 玩家一', 'ai'),
-        makePlayer('ai2', 'AI 玩家二', 'ai')
+        makePlayer('human', '玩家（你）', 'human'),
+        makePlayer('ai1', 'AI玩家甲', 'ai'),
+        makePlayer('ai2', 'AI玩家乙', 'ai')
       ],
       drawPile: game.shuffle(deck, rng),
       discardPile: [],
