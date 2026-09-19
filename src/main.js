@@ -368,6 +368,9 @@
   };
 
   if (typeof document !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', bootstrap);
+    document.addEventListener('DOMContentLoaded', async () => {
+      await game.GuideOverlay.load();
+      bootstrap();
+    });
   }
 })(globalThis);

@@ -118,7 +118,7 @@
       proxyButton('取消选择', 'action-button--cancel', 'cancel', '.human-actions [data-action="cancel"]'),
       proxyButton('保存牌局', 'action-button--save', 'save', '.human-actions [data-action="save"]'),
       ...(!showHandSwap ? [proxyButton('<span class="action-button__main">换一张手牌</span><span class="action-button__sub">结束回合</span>', 'action-button--primary', 'end', '.human-actions [data-action="end"]')] : []),
-      '<button type="button" class="action-button action-button--rules" data-v13-action="rules">规则说明</button>'
+      '<button type="button" class="action-button action-button--rules" data-v13-action="rules">游戏说明</button>'
     ].join('');
 
     target.querySelector('[data-v13-action="cancel"]')?.addEventListener('click', () => document.querySelector('.human-actions [data-action="cancel"]')?.click());
